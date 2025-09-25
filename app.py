@@ -181,7 +181,8 @@ elif page == "Feature Engineering":
         with col2:
             st.metric("TF-IDF Matrix Shape - Features", tfidf_matrix.shape[1])
         with col3:
-            st.metric("Sparsity", f"{(1 - tfidf_matrix.nnz / (tfidf_matrix.shape[0] * tfidf_matrix.shape[1])) * 100:.2f}%")
+            sparsity = (1 - tfidf_matrix.nnz / (tfidf_matrix.shape[0] * tfidf_matrix.shape[1])) * 100
+            st.metric("Sparsity", f"{sparsity:.2f}%")
         
         st.subheader("What is TF-IDF?")
         st.info("""
@@ -297,11 +298,11 @@ elif page == "Model Training":
             
             col1, col2, col3, col4 = st.columns(4)
             with col1:
-                st.metric("Training Set Size", X_train.shape[0])
+                st.metric("Training Set Size", len(X_train.toarray()) if hasattr(X_train, 'toarray') else len(X_train))
             with col2:
-                st.metric("Test Set Size", X_test.shape[0])
+                st.metric("Test Set Size", len(X_test.toarray()) if hasattr(X_test, 'toarray') else len(X_test))
             with col3:
-                st.metric("Features", X_train.shape[1])
+                st.metric("Features", X_train.shape[1] if hasattr(X_train, 'shape') else 0)
             with col4:
                 st.metric("Model Type", "Logistic Regression")
 
@@ -317,7 +318,11 @@ elif page == "Model Evaluation":
         y_test = st.session_state.y_test
         
         # Make predictions
-        y_pred = model.predict(X_test)
+        if model is not None:
+            y_pred = model.predict(X_test)
+        else:
+            st.error("Model not available")
+            st.stop()
         
         # Calculate metrics
         accuracy = accuracy_score(y_test, y_pred)
@@ -399,9 +404,13 @@ elif page == "Predictions":
                 processed_examples.append(processed_email)
             
             # Transform and predict
-            examples_tfidf = tfidf_vectorizer.transform(processed_examples)
-            predictions = model.predict(examples_tfidf)
-            probabilities = model.predict_proba(examples_tfidf)
+            if tfidf_vectorizer is not None and model is not None:
+                examples_tfidf = tfidf_vectorizer.transform(processed_examples)
+                predictions = model.predict(examples_tfidf)
+                probabilities = model.predict_proba(examples_tfidf)
+            else:
+                st.error("Model or vectorizer not available")
+                st.stop()
             
             st.subheader("Prediction Results")
             
@@ -432,9 +441,13 @@ elif page == "Predictions":
             processed_email = ' '.join(processed_email.split())
             
             # Transform and predict
-            email_tfidf = tfidf_vectorizer.transform([processed_email])
-            prediction = model.predict(email_tfidf)[0]
-            probability = model.predict_proba(email_tfidf)[0]
+            if tfidf_vectorizer is not None and model is not None:
+                email_tfidf = tfidf_vectorizer.transform([processed_email])
+                prediction = model.predict(email_tfidf)[0]
+                probability = model.predict_proba(email_tfidf)[0]
+            else:
+                st.error("Model or vectorizer not available")
+                st.stop()
             
             # Display result
             col1, col2 = st.columns(2)
@@ -494,7 +507,7 @@ elif page == "Summary":
         
         # Question 5: Model performance
         st.write("**5. Using the trained Logistic Regression model, how accurate was the evaluation?**")
-        if st.session_state.model_trained:
+        if st.session_state.model_trained and st.session_state.model is not None:
             model = st.session_state.model
             X_test = st.session_state.X_test
             y_test = st.session_state.y_test
