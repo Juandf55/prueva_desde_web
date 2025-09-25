@@ -7,7 +7,13 @@ import re
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.svm import SVC
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
+import nltk
+from nltk.corpus import stopwords
+from nltk.stem import PorterStemmer
+from wordcloud import WordCloud
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
@@ -35,17 +41,24 @@ if 'tfidf_vectorizer' not in st.session_state:
     st.session_state.tfidf_vectorizer = None
 if 'model' not in st.session_state:
     st.session_state.model = None
+if 'models' not in st.session_state:
+    st.session_state.models = {}
+if 'model_results' not in st.session_state:
+    st.session_state.model_results = {}
 if 'X_test' not in st.session_state:
     st.session_state.X_test = None
 if 'y_test' not in st.session_state:
     st.session_state.y_test = None
+if 'use_advanced_preprocessing' not in st.session_state:
+    st.session_state.use_advanced_preprocessing = False
 
 # Sidebar navigation
 st.sidebar.title("Navigation")
 page = st.sidebar.selectbox(
     "Choose a section:",
-    ["Data Loading", "Data Exploration", "Preprocessing", "Feature Engineering", 
-     "Descriptive Analytics", "Model Training", "Model Evaluation", "Predictions", "Summary"]
+    ["Data Loading", "Data Exploration", "Advanced Preprocessing", "Feature Engineering", 
+     "Descriptive Analytics", "Word Clouds", "Model Training", "Model Comparison", 
+     "Predictions", "Batch Predictions", "Downloads", "Summary"]
 )
 
 # Data Loading Section
@@ -112,9 +125,9 @@ elif page == "Data Exploration":
             else:
                 st.error("❌ 'label' column not found in dataset")
 
-# Preprocessing Section
-elif page == "Preprocessing":
-    st.header("🧹 Text Preprocessing")
+# Advanced Preprocessing Section
+elif page == "Advanced Preprocessing":
+    st.header("🧹 Advanced Text Preprocessing")
     
     if not st.session_state.data_loaded or st.session_state.df is None:
         st.warning("⚠️ Please load the dataset first from the 'Data Loading' section.")
@@ -124,31 +137,80 @@ elif page == "Preprocessing":
         if 'text' not in df.columns:
             st.error("❌ 'text' column not found in dataset")
         else:
+            st.subheader("Preprocessing Options")
+            
+            # Preprocessing options
+            col1, col2 = st.columns(2)
+            with col1:
+                remove_stopwords = st.checkbox("Remove Stop Words", value=False)
+                use_stemming = st.checkbox("Apply Stemming", value=False)
+            with col2:
+                min_length = st.slider("Minimum Word Length", 1, 5, 2)
+                max_features = st.slider("Max Features for TF-IDF", 1000, 10000, 5000)
+            
             st.subheader("Before Preprocessing:")
             st.write("Sample text examples:")
             st.dataframe(df[['text']].head(3))
             
-            # Text preprocessing
-            st.subheader("Applying Text Preprocessing...")
-            
-            with st.spinner("Processing text data..."):
-                # Convert to lowercase
-                df['text'] = df['text'].str.lower()
+            # Apply preprocessing
+            if st.button("Apply Advanced Preprocessing"):
+                with st.spinner("Processing text data..."):
+                    # Download NLTK data if needed
+                    try:
+                        nltk.data.find('tokenizers/punkt')
+                        nltk.data.find('corpora/stopwords')
+                    except LookupError:
+                        nltk.download('punkt', quiet=True)
+                        nltk.download('stopwords', quiet=True)
+                    
+                    # Convert to lowercase
+                    df['text'] = df['text'].str.lower()
+                    
+                    # Remove special characters and punctuation
+                    df['text'] = df['text'].apply(lambda x: re.sub(r'[^a-zA-Z\s]', '', str(x)))
+                    
+                    # Remove extra whitespace
+                    df['text'] = df['text'].apply(lambda x: ' '.join(str(x).split()))
+                    
+                    # Advanced preprocessing
+                    if remove_stopwords or use_stemming:
+                        stop_words = set(stopwords.words('english')) if remove_stopwords else set()
+                        stemmer = PorterStemmer() if use_stemming else None
+                        
+                        def process_text(text):
+                            words = text.split()
+                            # Remove stop words
+                            if remove_stopwords:
+                                words = [word for word in words if word.lower() not in stop_words]
+                            # Apply stemming
+                            if use_stemming and stemmer:
+                                words = [stemmer.stem(word) for word in words]
+                            # Filter by minimum length
+                            words = [word for word in words if len(word) >= min_length]
+                            return ' '.join(words)
+                        
+                        df['text'] = df['text'].apply(process_text)
+                    
+                    # Update session state
+                    st.session_state.df = df
+                    st.session_state.use_advanced_preprocessing = True
+                    st.session_state.max_features = max_features
                 
-                # Remove special characters and punctuation
-                df['text'] = df['text'].apply(lambda x: re.sub(r'[^a-zA-Z\s]', '', str(x)))
+                st.success("✅ Advanced text preprocessing completed!")
                 
-                # Remove extra whitespace
-                df['text'] = df['text'].apply(lambda x: ' '.join(str(x).split()))
-            
-            st.success("✅ Text preprocessing completed!")
-            
-            st.subheader("After Preprocessing:")
-            st.write("Sample processed text examples:")
-            st.dataframe(df[['text']].head(3))
-            
-            # Update session state
-            st.session_state.df = df
+                st.subheader("After Preprocessing:")
+                st.write("Sample processed text examples:")
+                st.dataframe(df[['text']].head(3))
+                
+                # Show preprocessing summary
+                st.subheader("Preprocessing Summary")
+                preprocessing_summary = f"""
+                - **Stop Words Removed**: {'Yes' if remove_stopwords else 'No'}
+                - **Stemming Applied**: {'Yes' if use_stemming else 'No'}
+                - **Minimum Word Length**: {min_length}
+                - **Max TF-IDF Features**: {max_features}
+                """
+                st.info(preprocessing_summary)
 
 # Feature Engineering Section
 elif page == "Feature Engineering":
@@ -163,8 +225,17 @@ elif page == "Feature Engineering":
         st.write("Transforming text data into numerical features using Term Frequency-Inverse Document Frequency (TF-IDF)")
         
         with st.spinner("Applying TF-IDF vectorization..."):
+            # Use advanced preprocessing settings if available
+            max_features = getattr(st.session_state, 'max_features', 5000)
+            stop_words = 'english' if not st.session_state.use_advanced_preprocessing else None
+            
             # Initialize TfidfVectorizer
-            tfidf_vectorizer = TfidfVectorizer(max_features=5000, stop_words='english')
+            tfidf_vectorizer = TfidfVectorizer(
+                max_features=max_features, 
+                stop_words=stop_words,
+                min_df=2,
+                max_df=0.95
+            )
             
             # Fit and transform the text data
             tfidf_matrix = tfidf_vectorizer.fit_transform(df['text'])
@@ -181,7 +252,12 @@ elif page == "Feature Engineering":
         with col2:
             st.metric("TF-IDF Matrix Shape - Features", tfidf_matrix.shape[1])
         with col3:
-            st.metric("Sparsity", f"{(1 - tfidf_matrix.nnz / (tfidf_matrix.shape[0] * tfidf_matrix.shape[1])) * 100:.2f}%")
+            # Handle sparsity calculation for sparse matrix
+            if hasattr(tfidf_matrix, 'nnz'):
+                sparsity = (1 - tfidf_matrix.nnz / (tfidf_matrix.shape[0] * tfidf_matrix.shape[1])) * 100
+                st.metric("Sparsity", f"{sparsity:.2f}%")
+            else:
+                st.metric("Sparsity", "N/A")
         
         st.subheader("What is TF-IDF?")
         st.info("""
@@ -191,6 +267,86 @@ elif page == "Feature Engineering":
         - **IDF (Inverse Document Frequency)**: How rare or common a term is across all documents
         - **TF-IDF**: TF × IDF - gives higher weights to terms that are frequent in a document but rare across the corpus
         """)
+
+# Word Clouds Section
+elif page == "Word Clouds":
+    st.header("☁️ Word Cloud Visualizations")
+    
+    if not st.session_state.data_loaded or st.session_state.df is None:
+        st.warning("⚠️ Please load the dataset first.")
+    else:
+        df = st.session_state.df
+        
+        if 'label' in df.columns and 'text' in df.columns:
+            st.subheader("Word Clouds for Spam vs Ham Emails")
+            
+            # Separate spam and ham emails
+            spam_text = ' '.join(df[df['label'] == 1]['text'].astype(str))
+            ham_text = ' '.join(df[df['label'] == 0]['text'].astype(str))
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.write("**Spam Emails Word Cloud**")
+                if spam_text.strip():
+                    wordcloud_spam = WordCloud(
+                        width=400, height=300, 
+                        background_color='white',
+                        colormap='Reds',
+                        max_words=100
+                    ).generate(spam_text)
+                    
+                    fig, ax = plt.subplots(figsize=(8, 6))
+                    ax.imshow(wordcloud_spam, interpolation='bilinear')
+                    ax.axis('off')
+                    ax.set_title('Most Common Words in Spam Emails', fontsize=14, pad=20)
+                    st.pyplot(fig)
+                else:
+                    st.info("No spam text available for word cloud generation")
+            
+            with col2:
+                st.write("**Ham Emails Word Cloud**")
+                if ham_text.strip():
+                    wordcloud_ham = WordCloud(
+                        width=400, height=300, 
+                        background_color='white',
+                        colormap='Blues',
+                        max_words=100
+                    ).generate(ham_text)
+                    
+                    fig, ax = plt.subplots(figsize=(8, 6))
+                    ax.imshow(wordcloud_ham, interpolation='bilinear')
+                    ax.axis('off')
+                    ax.set_title('Most Common Words in Ham Emails', fontsize=14, pad=20)
+                    st.pyplot(fig)
+                else:
+                    st.info("No ham text available for word cloud generation")
+            
+            st.subheader("Word Frequency Analysis")
+            
+            # Most common words analysis
+            from collections import Counter
+            
+            # Get top words for spam and ham
+            spam_words = ' '.join(df[df['label'] == 1]['text'].astype(str)).split()
+            ham_words = ' '.join(df[df['label'] == 0]['text'].astype(str)).split()
+            
+            spam_word_freq = Counter(spam_words).most_common(20)
+            ham_word_freq = Counter(ham_words).most_common(20)
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.write("**Top 20 Words in Spam Emails**")
+                spam_df = pd.DataFrame(spam_word_freq, columns=['Word', 'Frequency'])
+                st.dataframe(spam_df, use_container_width=True)
+            
+            with col2:
+                st.write("**Top 20 Words in Ham Emails**")
+                ham_df = pd.DataFrame(ham_word_freq, columns=['Word', 'Frequency'])
+                st.dataframe(ham_df, use_container_width=True)
+        else:
+            st.error("Required columns 'label' or 'text' not found in dataset")
 
 # Descriptive Analytics Section
 elif page == "Descriptive Analytics":
@@ -297,11 +453,11 @@ elif page == "Model Training":
             
             col1, col2, col3, col4 = st.columns(4)
             with col1:
-                st.metric("Training Set Size", X_train.shape[0])
+                st.metric("Training Set Size", X_train.shape[0] if hasattr(X_train, 'shape') else len(X_train))
             with col2:
-                st.metric("Test Set Size", X_test.shape[0])
+                st.metric("Test Set Size", X_test.shape[0] if hasattr(X_test, 'shape') else len(X_test))
             with col3:
-                st.metric("Features", X_train.shape[1])
+                st.metric("Features", X_train.shape[1] if hasattr(X_train, 'shape') else "N/A")
             with col4:
                 st.metric("Model Type", "Logistic Regression")
 
@@ -317,7 +473,11 @@ elif page == "Model Evaluation":
         y_test = st.session_state.y_test
         
         # Make predictions
-        y_pred = model.predict(X_test)
+        if model is not None and X_test is not None:
+            y_pred = model.predict(X_test)
+        else:
+            st.error("Model or test data not available")
+            return
         
         # Calculate metrics
         accuracy = accuracy_score(y_test, y_pred)
@@ -399,9 +559,13 @@ elif page == "Predictions":
                 processed_examples.append(processed_email)
             
             # Transform and predict
-            examples_tfidf = tfidf_vectorizer.transform(processed_examples)
-            predictions = model.predict(examples_tfidf)
-            probabilities = model.predict_proba(examples_tfidf)
+            if tfidf_vectorizer is not None and model is not None:
+                examples_tfidf = tfidf_vectorizer.transform(processed_examples)
+                predictions = model.predict(examples_tfidf)
+                probabilities = model.predict_proba(examples_tfidf)
+            else:
+                st.error("Model or vectorizer not available")
+                return
             
             st.subheader("Prediction Results")
             
@@ -432,9 +596,13 @@ elif page == "Predictions":
             processed_email = ' '.join(processed_email.split())
             
             # Transform and predict
-            email_tfidf = tfidf_vectorizer.transform([processed_email])
-            prediction = model.predict(email_tfidf)[0]
-            probability = model.predict_proba(email_tfidf)[0]
+            if tfidf_vectorizer is not None and model is not None:
+                email_tfidf = tfidf_vectorizer.transform([processed_email])
+                prediction = model.predict(email_tfidf)[0]
+                probability = model.predict_proba(email_tfidf)[0]
+            else:
+                st.error("Model or vectorizer not available")
+                return
             
             # Display result
             col1, col2 = st.columns(2)
@@ -498,7 +666,11 @@ elif page == "Summary":
             model = st.session_state.model
             X_test = st.session_state.X_test
             y_test = st.session_state.y_test
-            y_pred = model.predict(X_test)
+            if model is not None and X_test is not None:
+                y_pred = model.predict(X_test)
+            else:
+                st.warning("Model or test data not available.")
+                return
             
             accuracy = accuracy_score(y_test, y_pred)
             precision = precision_score(y_test, y_pred)
