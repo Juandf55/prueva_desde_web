@@ -12,14 +12,14 @@ import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-# Configure page
+
 st.set_page_config(
     page_title="Spam Email Classification Analysis",
     page_icon="📧",
     layout="wide"
 )
 
-# Title and description
+
 st.title("📧 Spam Email Classification Analysis")
 st.markdown("### Interactive Machine Learning Application for Email Spam Detection")
 st.markdown("---")
