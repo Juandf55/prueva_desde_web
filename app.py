@@ -15,12 +15,11 @@ from plotly.subplots import make_subplots
 
 st.set_page_config(
     page_title="Spam Email Classification Analysis",
-    page_icon="📧",
     layout="wide"
 )
 
 
-st.title("📧 Spam Email Classification Analysis")
+st.title("Spam Email Classification Analysis")
 st.markdown("### Interactive Machine Learning Application for Email Spam Detection")
 st.markdown("---")
 
@@ -50,7 +49,7 @@ page = st.sidebar.selectbox(
 
 # Data Loading Section
 if page == "Data Loading":
-    st.header("📁 Data Loading")
+    st.header("Data Loading")
     
     try:
         # Load the dataset
@@ -58,7 +57,7 @@ if page == "Data Loading":
         st.session_state.df = df
         st.session_state.data_loaded = True
         
-        st.success("✅ Dataset loaded successfully!")
+        st.success("Dataset loaded successfully!")
         
         st.subheader("First 5 rows of the dataset:")
         st.dataframe(df.head())
@@ -73,19 +72,19 @@ if page == "Data Loading":
             st.metric("Memory Usage", f"{df.memory_usage(deep=True).sum() / 1024**2:.2f} MB")
             
     except FileNotFoundError:
-        st.error("❌ Dataset file 'combined_data.csv' not found in sample_data folder. Please upload the dataset.")
-        st.info("💡 The expected file path is: `sample_data/combined_data.csv`")
+        st.error("Dataset file 'combined_data.csv' not found in sample_data folder. Please upload the dataset.")
+        st.info("The expected file path is: `sample_data/combined_data.csv`")
         st.session_state.data_loaded = False
     except Exception as e:
-        st.error(f"❌ Error loading dataset: {str(e)}")
+        st.error(f"Error loading dataset: {str(e)}")
         st.session_state.data_loaded = False
 
 # Data Exploration Section
 elif page == "Data Exploration":
-    st.header("🔍 Data Exploration and Preprocessing")
+    st.header("Data Exploration and Preprocessing")
     
     if not st.session_state.data_loaded or st.session_state.df is None:
-        st.warning("⚠️ Please load the dataset first from the 'Data Loading' section.")
+        st.warning("Please load the dataset first from the 'Data Loading' section.")
     else:
         df = st.session_state.df
         
@@ -110,11 +109,11 @@ elif page == "Data Exploration":
                 label_counts = df['label'].value_counts()
                 st.dataframe(label_counts.to_frame().rename(columns={'label': 'Count'}))
             else:
-                st.error("❌ 'label' column not found in dataset")
+                st.error("'label' column not found in dataset")
 
 # Preprocessing Section
 elif page == "Preprocessing":
-    st.header("🧹 Text Preprocessing")
+    st.header("Text Preprocessing")
     
     if not st.session_state.data_loaded or st.session_state.df is None:
         st.warning("⚠️ Please load the dataset first from the 'Data Loading' section.")
@@ -122,7 +121,7 @@ elif page == "Preprocessing":
         df = st.session_state.df.copy()
         
         if 'text' not in df.columns:
-            st.error("❌ 'text' column not found in dataset")
+            st.error("'text' column not found in dataset")
         else:
             st.subheader("Before Preprocessing:")
             st.write("Sample text examples:")
@@ -141,7 +140,7 @@ elif page == "Preprocessing":
                 # Remove extra whitespace
                 df['text'] = df['text'].apply(lambda x: ' '.join(str(x).split()))
             
-            st.success("✅ Text preprocessing completed!")
+            st.success("Text preprocessing completed!")
             
             st.subheader("After Preprocessing:")
             st.write("Sample processed text examples:")
@@ -152,7 +151,7 @@ elif page == "Preprocessing":
 
 # Feature Engineering Section
 elif page == "Feature Engineering":
-    st.header("⚙️ Feature Engineering")
+    st.header("Feature Engineering")
     
     if not st.session_state.data_loaded or st.session_state.df is None:
         st.warning("⚠️ Please load and preprocess the dataset first.")
@@ -173,7 +172,7 @@ elif page == "Feature Engineering":
             st.session_state.tfidf_vectorizer = tfidf_vectorizer
             st.session_state.tfidf_matrix = tfidf_matrix
         
-        st.success("✅ TF-IDF vectorization completed!")
+        st.success("TF-IDF vectorization completed!")
         
         col1, col2, col3 = st.columns(3)
         with col1:
@@ -195,7 +194,7 @@ elif page == "Feature Engineering":
 
 # Descriptive Analytics Section
 elif page == "Descriptive Analytics":
-    st.header("📊 Descriptive Analytics")
+    st.header("Descriptive Analytics")
     
     if not st.session_state.data_loaded or st.session_state.df is None:
         st.warning("⚠️ Please load the dataset first.")
@@ -257,16 +256,16 @@ elif page == "Descriptive Analytics":
             st.dataframe(stats_df)
             
         else:
-            st.error("❌ 'label' column not found for analysis")
+            st.error("'label' column not found for analysis")
 
 # Model Training Section
 elif page == "Model Training":
-    st.header("🤖 Model Selection and Training")
+    st.header("Model Selection and Training")
     
     if not st.session_state.data_loaded or st.session_state.df is None:
-        st.warning("⚠️ Please complete feature engineering first.")
+        st.warning("Please complete feature engineering first.")
     elif not hasattr(st.session_state, 'tfidf_matrix'):
-        st.warning("⚠️ Please complete feature engineering first.")
+        st.warning("Please complete feature engineering first.")
     else:
         df = st.session_state.df
         tfidf_matrix = st.session_state.tfidf_matrix
@@ -294,7 +293,7 @@ elif page == "Model Training":
                 st.session_state.y_test = y_test
                 st.session_state.model_trained = True
                 
-            st.success("✅ Model trained successfully!")
+            st.success("Model trained successfully!")
             
             col1, col2, col3, col4 = st.columns(4)
             with col1:
@@ -308,10 +307,10 @@ elif page == "Model Training":
 
 # Model Evaluation Section
 elif page == "Model Evaluation":
-    st.header("📈 Model Evaluation")
+    st.header("Model Evaluation")
     
     if not st.session_state.model_trained:
-        st.warning("⚠️ Please train the model first from the 'Model Training' section.")
+        st.warning("Please train the model first from the 'Model Training' section.")
     else:
         model = st.session_state.model
         X_test = st.session_state.X_test
@@ -372,10 +371,10 @@ elif page == "Model Evaluation":
 
 # Predictions Section
 elif page == "Predictions":
-    st.header("🔮 Prediction and Interpretation")
+    st.header("Prediction and Interpretation")
     
     if not st.session_state.model_trained:
-        st.warning("⚠️ Please train the model first from the 'Model Training' section.")
+        st.warning("Please train the model first from the 'Model Training' section.")
     else:
         model = st.session_state.model
         tfidf_vectorizer = st.session_state.tfidf_vectorizer
@@ -454,9 +453,9 @@ elif page == "Predictions":
             
             with col1:
                 if prediction == 1:
-                    st.error(f"🚨 **SPAM** (Confidence: {probability[1]:.1%})")
+                    st.error(f"**SPAM** (Confidence: {probability[1]:.1%})")
                 else:
-                    st.success(f"✅ **HAM** (Confidence: {probability[0]:.1%})")
+                    st.success(f"**HAM** (Confidence: {probability[0]:.1%})")
             
             with col2:
                 st.write("**Probability Breakdown:**")
@@ -465,10 +464,10 @@ elif page == "Predictions":
 
 # Summary Section
 elif page == "Summary":
-    st.header("📋 Analysis Summary")
+    st.header("Analysis Summary")
     
     if not st.session_state.data_loaded:
-        st.warning("⚠️ Please complete the analysis first.")
+        st.warning("Please complete the analysis first.")
     else:
         df = st.session_state.df
         
@@ -546,5 +545,6 @@ elif page == "Summary":
 
 # Footer
 st.markdown("---")
-st.markdown("### 📧 Spam Email Classification Analysis - Interactive ML Application")
+st.markdown("### Spam Email Classification Analysis - Interactive ML Application")
+st.markdown("Navigate through the different sections using the sidebar to explore the complete machine learning workflow.")
 st.markdown("Navigate through the different sections using the sidebar to explore the complete machine learning workflow.")
